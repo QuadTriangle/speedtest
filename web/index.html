@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speedtest</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: oklch(0.98 0.002 260);
+      --surface: oklch(1 0 0);
+      --elevated: oklch(0.96 0.004 260);
+      --border: oklch(0.9 0.006 260);
+      --border-strong: oklch(0.82 0.008 260);
+      --fg: oklch(0.15 0.012 260);
+      --muted: oklch(0.45 0.012 260);
+      --subtle: oklch(0.6 0.01 260);
+      --primary: oklch(0.55 0.18 162);
+      --primary-strong: oklch(0.48 0.18 162);
+      --primary-fg: oklch(0.98 0.005 162);
+      --accent: oklch(0.55 0.14 210);
+      --success: oklch(0.55 0.16 150);
+      --danger: oklch(0.55 0.18 25);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: oklch(0.16 0.012 260);
+        --surface: oklch(0.2 0.014 260);
+        --elevated: oklch(0.24 0.016 260);
+        --border: oklch(0.3 0.014 260);
+        --border-strong: oklch(0.4 0.016 260);
+        --fg: oklch(0.97 0.005 260);
+        --muted: oklch(0.74 0.012 260);
+        --subtle: oklch(0.56 0.012 260);
+        --primary: oklch(0.78 0.16 162);
+        --primary-strong: oklch(0.72 0.17 162);
+        --primary-fg: oklch(0.18 0.02 162);
+        --accent: oklch(0.78 0.13 210);
+        --success: oklch(0.8 0.16 150);
+        --danger: oklch(0.68 0.18 25);
+      }
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    ::selection {
+      background-color: var(--primary);
+      color: var(--primary-fg);
+    }
+
+    /* Layout */
+    .page {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 3rem 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Ambient glow */
+    .glow {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%) translateY(-40%);
+      width: 36rem;
+      height: 36rem;
+      background: color-mix(in oklch, var(--primary) 8%, transparent);
+      border-radius: 50%;
+      filter: blur(120px);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      max-width: 520px;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .header h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+    }
+
+    .header h1 span {
+      color: var(--primary);
+    }
+
+    .header p {
+      margin-top: 0.75rem;
+      color: var(--muted);
+      font-size: 1rem;
+    }
+
+    /* Gauge */
+    .gauge {
+      text-align: center;
+      padding: 2rem 0;
+    }
+
+    .gauge-value {
+      font-size: 5rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      font-variant-numeric: tabular-nums;
+      color: var(--fg);
+    }
+
+    .gauge-unit {
+      margin-top: 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--subtle);
+    }
+
+    /* Results */
+    .results {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin: 1.5rem 0;
+    }
+
+    .result-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      padding: 1.25rem 1rem;
+      text-align: center;
+      transition: border-color 0.2s, background 0.2s;
+    }
+
+    .result-card:hover {
+      border-color: var(--border-strong);
+      background: var(--elevated);
+    }
+
+    .result-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--subtle);
+      margin-bottom: 0.5rem;
+    }
+
+    .result-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--fg);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .result-unit {
+      font-size: 0.65rem;
+      font-weight: 500;
+      color: var(--muted);
+      margin-left: 2px;
+    }
+
+    /* Button */
+    .start-btn {
+      display: block;
+      width: 100%;
+      padding: 0.875rem;
+      margin-top: 1.5rem;
+      background: var(--primary);
+      color: var(--primary-fg);
+      border: none;
+      border-radius: 0.625rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.15s, box-shadow 0.15s;
+      box-shadow: 0 4px 20px color-mix(in oklch, var(--primary) 20%, transparent);
+    }
+
+    .start-btn:hover {
+      background: var(--primary-strong);
+      box-shadow: 0 6px 28px color-mix(in oklch, var(--primary) 30%, transparent);
+    }
+
+    .start-btn:active { transform: scale(0.97); }
+    .start-btn:disabled { opacity: 0.4; cursor: default; transform: none; }
+
+    /* Progress */
+    .progress-track {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 1.5rem;
+      overflow: hidden;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    .progress-track.active { opacity: 1; }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      width: 0%;
+      transition: width 0.3s;
+      border-radius: 2px;
+    }
+
+    .status {
+      margin-top: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--subtle);
+      text-align: center;
+      min-height: 1.1em;
+    }
+
+    /* Install */
+    .install {
+      margin-top: 3rem;
+      padding-top: 2.5rem;
+      border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+    }
+
+    .install-heading {
+      font-size: 0.7rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.2em;
+      color: var(--primary);
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    .terminal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 1rem;
+      overflow: hidden;
+    }
+
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .terminal-dot {
+      width: 0.6rem;
+      height: 0.6rem;
+      border-radius: 50%;
+    }
+
+    .terminal-dot.r { background: color-mix(in oklch, var(--danger) 70%, transparent); }
+    .terminal-dot.y { background: color-mix(in oklch, oklch(0.82 0.15 80) 70%, transparent); }
+    .terminal-dot.g { background: color-mix(in oklch, var(--success) 70%, transparent); }
+
+    .terminal-title {
+      font-family: 'Geist Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--subtle);
+      margin-left: 0.5rem;
+    }
+
+    .terminal-body {
+      padding: 1.25rem 1.25rem;
+      font-family: 'Geist Mono', monospace;
+      font-size: 0.8rem;
+      line-height: 1.7;
+      position: relative;
+    }
+
+    .terminal-body .prompt { color: var(--primary); }
+    .terminal-body .cmd { color: var(--fg); }
+    .terminal-body .comment { color: var(--subtle); }
+    .terminal-body .output { color: var(--muted); margin-top: 0.25rem; }
+
+    .terminal-copy {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      background: var(--elevated);
+      border: 1px solid var(--border);
+      border-radius: 0.375rem;
+      color: var(--subtle);
+      padding: 0.3rem 0.5rem;
+      font-size: 0.65rem;
+      font-family: 'Inter', sans-serif;
+      font-weight: 500;
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .terminal-copy:hover { color: var(--fg); border-color: var(--border-strong); }
+    .terminal-copy.done { color: var(--primary); border-color: var(--primary); }
+
+    .install-note {
+      margin-top: 0.75rem;
+      font-size: 0.75rem;
+      color: var(--subtle);
+      text-align: center;
+    }
+
+    .install-note a {
+      color: var(--primary);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .install-note a:hover { color: var(--fg); text-decoration: underline; }
+
+    @media (max-width: 480px) {
+      .header h1 { font-size: 2rem; }
+      .gauge-value { font-size: 3.5rem; }
+      .results { gap: 0.5rem; }
+      .result-card { padding: 1rem 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="glow" aria-hidden="true"></div>
+
+    <div class="content">
+      <div class="header">
+        <h1>Speed<span>test</span></h1>
+        <p>Self-hosted network speed measurement</p>
+      </div>
+
+      <div class="gauge">
+        <div class="gauge-value" id="speed">—</div>
+        <div class="gauge-unit" id="unit">Mbps</div>
+      </div>
+
+      <div class="results">
+        <div class="result-card">
+          <div class="result-label">Download</div>
+          <div><span class="result-value" id="download">—</span><span class="result-unit" id="download-unit"></span></div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Upload</div>
+          <div><span class="result-value" id="upload">—</span><span class="result-unit" id="upload-unit"></span></div>
+        </div>
+        <div class="result-card">
+          <div class="result-label">Latency</div>
+          <div><span class="result-value" id="ping">—</span><span class="result-unit" id="ping-unit"></span></div>
+        </div>
+      </div>
+
+      <button class="start-btn" id="start-btn" onclick="startTest()">Run speed test</button>
+
+      <div class="progress-track" id="progress">
+        <div class="progress-fill" id="progress-fill"></div>
+      </div>
+      <div class="status" id="status"></div>
+
+      <div class="install">
+        <div class="install-heading">Get started</div>
+        <div class="terminal">
+          <div class="terminal-bar">
+            <span class="terminal-dot r"></span>
+            <span class="terminal-dot y"></span>
+            <span class="terminal-dot g"></span>
+            <span class="terminal-title">bash</span>
+          </div>
+          <div class="terminal-body">
+            <button class="terminal-copy" id="copy-btn" onclick="copyInstall()">copy</button>
+            <div><span class="comment"># download &amp; run</span></div>
+            <div><span class="prompt">$</span> <span class="cmd" id="install-cmd">curl -fsSL https://github.com/QuadTriangle/speedtest/releases/latest/download/speedtest-linux-amd64 -o speedtest &amp;&amp; chmod +x speedtest</span></div>
+            <div><span class="prompt">$</span> ./speedtest</div>
+            <div class="output">Speedtest server running on http://localhost:8080</div>
+            <div style="margin-top: 0.5rem;"><span class="comment"># custom port</span></div>
+            <div><span class="prompt">$</span> ./speedtest 8075</div>
+            <div class="output">Speedtest server running on http://localhost:8075</div>
+          </div>
+        </div>
+        <p class="install-note">
+          ARM64: replace <code style="font-family:'Geist Mono',monospace;font-size:0.7rem;background:var(--elevated);padding:0.1rem 0.3rem;border-radius:4px;border:1px solid var(--border);">amd64</code> with <code style="font-family:'Geist Mono',monospace;font-size:0.7rem;background:var(--elevated);padding:0.1rem 0.3rem;border-radius:4px;border:1px solid var(--border);">arm64</code> ·
+          <a href="https://github.com/QuadTriangle/speedtest/releases">All releases</a>
+        </p>
+
+        <div class="terminal" style="margin-top: 1.5rem;">
+          <div class="terminal-bar">
+            <span class="terminal-dot r"></span>
+            <span class="terminal-dot y"></span>
+            <span class="terminal-dot g"></span>
+            <span class="terminal-title">docker</span>
+          </div>
+          <div class="terminal-body">
+            <button class="terminal-copy" id="copy-docker-btn" onclick="copyDocker()">copy</button>
+            <div><span class="comment"># run with docker</span></div>
+            <div><span class="prompt">$</span> <span class="cmd">docker run --rm -it -p 8080:8080 ghcr.io/quadtriangle/speedtest:latest</span></div>
+            <div class="output">Speedtest server running on http://localhost:8080</div>
+          </div>
+        </div>
+        <p class="install-note">
+          Linux host networking: use <code style="font-family:'Geist Mono',monospace;font-size:0.7rem;background:var(--elevated);padding:0.1rem 0.3rem;border-radius:4px;border:1px solid var(--border);">--net=host</code> instead of <code style="font-family:'Geist Mono',monospace;font-size:0.7rem;background:var(--elevated);padding:0.1rem 0.3rem;border-radius:4px;border:1px solid var(--border);">-p 8080:8080</code> ·
+          <a href="https://github.com/quadtriangle/speedtest/pkgs/container/speedtest">GHCR</a>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function copyInstall() {
+      const cmd = 'curl -fsSL https://github.com/QuadTriangle/speedtest/releases/latest/download/speedtest-linux-amd64 -o speedtest && chmod +x speedtest';
+      const btn = document.getElementById('copy-btn');
+      navigator.clipboard.writeText(cmd).then(() => {
+        btn.textContent = 'copied';
+        btn.classList.add('done');
+        setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('done'); }, 1500);
+      });
+    }
+
+    function copyDocker() {
+      const cmd = 'docker run --rm -it -p 8080:8080 ghcr.io/quadtriangle/speedtest:latest';
+      const btn = document.getElementById('copy-docker-btn');
+      navigator.clipboard.writeText(cmd).then(() => {
+        btn.textContent = 'copied';
+        btn.classList.add('done');
+        setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('done'); }, 1500);
+      });
+    }
+
+    function formatSpeed(bps) {
+      const kbps = bps / 1000;
+      const mbps = kbps / 1000;
+      const gbps = mbps / 1000;
+      if (gbps >= 1) return { value: gbps.toFixed(2), unit: 'Gbps' };
+      if (mbps >= 1) return { value: mbps.toFixed(1), unit: 'Mbps' };
+      return { value: kbps.toFixed(0), unit: 'Kbps' };
+    }
+
+    function setStatus(t) { document.getElementById('status').textContent = t; }
+    function setProgress(p) { document.getElementById('progress-fill').style.width = p + '%'; }
+
+    async function measurePing() {
+      setStatus('Measuring latency...');
+      const r = [];
+      for (let i = 0; i < 5; i++) {
+        const s = performance.now();
+        await fetch('/api/ping?t=' + Date.now(), { cache: 'no-store' });
+        r.push(performance.now() - s);
+        setProgress((i + 1) * 6);
+      }
+      r.sort((a, b) => a - b);
+      return r[Math.floor(r.length / 2)];
+    }
+
+    async function measureDownload(onProgress) {
+      setStatus('Testing download...');
+      const size = 25 * 1024 * 1024;
+      const duration = 10000;
+      const start = performance.now();
+      let bytes = 0, lastUp = start;
+
+      while (performance.now() - start < duration) {
+        const resp = await fetch('/api/download?size=' + size + '&t=' + Date.now(), { cache: 'no-store' });
+        const reader = resp.body.getReader();
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          bytes += value.length;
+          const now = performance.now();
+          if (now - lastUp > 200) {
+            onProgress((bytes * 8) / ((now - start) / 1000));
+            lastUp = now;
+          }
+          if (now - start >= duration) break;
+        }
+        if (performance.now() - start >= duration) break;
+      }
+      return (bytes * 8) / ((performance.now() - start) / 1000);
+    }
+
+    async function measureUpload(onProgress) {
+      setStatus('Testing upload...');
+      const chunkSize = 5 * 1024 * 1024;
+      const duration = 10000;
+      const start = performance.now();
+      let bytes = 0, lastUp = start;
+
+      const data = new Uint8Array(chunkSize);
+      for (let i = 0; i < chunkSize; i += 65536) {
+        crypto.getRandomValues(data.subarray(i, Math.min(i + 65536, chunkSize)));
+      }
+
+      while (performance.now() - start < duration) {
+        await fetch('/api/upload', { method: 'POST', body: data, headers: { 'Content-Type': 'application/octet-stream' } });
+        bytes += chunkSize;
+        const now = performance.now();
+        if (now - lastUp > 200) {
+          onProgress((bytes * 8) / ((now - start) / 1000));
+          lastUp = now;
+        }
+        if (now - start >= duration) break;
+      }
+      return (bytes * 8) / ((performance.now() - start) / 1000);
+    }
+
+    async function startTest() {
+      const btn = document.getElementById('start-btn');
+      btn.disabled = true;
+      btn.textContent = 'Running...';
+      document.getElementById('progress').classList.add('active');
+      setProgress(0);
+
+      try {
+        const ping = await measurePing();
+        document.getElementById('ping').textContent = Math.round(ping);
+        document.getElementById('ping-unit').textContent = ' ms';
+        setProgress(30);
+
+        const dl = await measureDownload((s) => {
+          const f = formatSpeed(s);
+          document.getElementById('speed').textContent = f.value;
+          document.getElementById('unit').textContent = f.unit;
+        });
+        const dlF = formatSpeed(dl);
+        document.getElementById('download').textContent = dlF.value;
+        document.getElementById('download-unit').textContent = ' ' + dlF.unit;
+        document.getElementById('speed').textContent = dlF.value;
+        document.getElementById('unit').textContent = dlF.unit;
+        setProgress(65);
+
+        const ul = await measureUpload((s) => {
+          const f = formatSpeed(s);
+          document.getElementById('speed').textContent = f.value;
+          document.getElementById('unit').textContent = f.unit;
+        });
+        const ulF = formatSpeed(ul);
+        document.getElementById('upload').textContent = ulF.value;
+        document.getElementById('upload-unit').textContent = ' ' + ulF.unit;
+        setProgress(100);
+
+        document.getElementById('speed').textContent = dlF.value;
+        document.getElementById('unit').textContent = dlF.unit;
+        setStatus('Complete');
+      } catch (e) {
+        setStatus('Error: ' + e.message);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Run speed test';
+      }
+    }
+  </script>
+</body>
+</html>
