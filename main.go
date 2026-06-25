@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"embed"
 	"fmt"
@@ -23,23 +24,44 @@ func init() {
 //go:embed web/*
 var webAssets embed.FS
 
+// stripInstallSection removes the "Get started" install div from HTML
+func stripInstallSection(html []byte) []byte {
+	marker := []byte(`<div class="install">`)
+	start := bytes.Index(html, marker)
+	if start == -1 {
+		return html
+	}
+	// Find the closing </div> at the same indentation level (6 spaces)
+	closing := []byte("\n      </div>")
+	end := bytes.Index(html[start+len(marker):], closing)
+	if end == -1 {
+		return html
+	}
+	end = start + len(marker) + end + len(closing)
+	return append(html[:start], html[end:]...)
+}
+
 func main() {
 	port := 8080
+	noBranding := false
 
-	// Simple arg parsing: speedtest [port]
-	if len(os.Args) > 1 {
-		arg := os.Args[1]
+	// Simple arg parsing: speedtest [--no-branding] [port]
+	args := os.Args[1:]
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
 		switch arg {
 		case "-h", "--help", "help":
-			fmt.Fprintf(os.Stderr, "Usage: speedtest [port]\n\n  port  Port to listen on (default: 8080)\n\nExamples:\n  speedtest        # listen on :8080\n  speedtest 3000   # listen on :3000\n")
+			fmt.Fprintf(os.Stderr, "Usage: speedtest [--no-branding] [port]\n\n  --no-branding  Hide the \"Get started\" section in the web UI\n  port           Port to listen on (default: 8080)\n\nExamples:\n  speedtest                # listen on :8080\n  speedtest 3000           # listen on :3000\n  speedtest --no-branding  # hide install instructions\n")
 			os.Exit(0)
 		case "-v", "--version", "version":
 			fmt.Println("speedtest v0.1.0")
 			os.Exit(0)
+		case "--no-branding":
+			noBranding = true
 		default:
 			p, err := strconv.Atoi(arg)
 			if err != nil || p < 1 || p > 65535 {
-				fmt.Fprintf(os.Stderr, "Error: invalid port %q\n\nUsage: speedtest [port]\n", arg)
+				fmt.Fprintf(os.Stderr, "Error: invalid port %q\n\nUsage: speedtest [--no-branding] [port]\n", arg)
 				os.Exit(1)
 			}
 			port = p
@@ -48,15 +70,16 @@ func main() {
 
 	mux := http.NewServeMux()
 
+	// Prepare HTML (strip branding section if requested)
+	htmlData, _ := webAssets.ReadFile("web/index.html")
+	if noBranding {
+		htmlData = stripInstallSection(htmlData)
+	}
+
 	// Serve embedded web UI
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		data, err := webAssets.ReadFile("web/index.html")
-		if err != nil {
-			http.Error(w, "not found", http.StatusNotFound)
-			return
-		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(data)
+		w.Write(htmlData)
 	})
 
 	// Download endpoint - streams random data for speed measurement
