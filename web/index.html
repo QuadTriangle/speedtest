@@ -430,6 +430,11 @@
   </div>
 
   <script>
+    // Pre-generated random buffer — filled once on page load, reused for all uploads.
+    // Avoids per-test crypto overhead. Same pattern as backend's downloadBuf.
+    const uploadData = new Uint8Array(5 * 1024 * 1024);
+    crypto.getRandomValues(uploadData);
+
     function copyInstall() {
       const cmd = 'curl -fsSL https://github.com/QuadTriangle/speedtest/releases/latest/download/speedtest-linux-amd64 -o speedtest && chmod +x speedtest';
       const btn = document.getElementById('copy-btn');
@@ -503,19 +508,13 @@
 
     async function measureUpload(onProgress) {
       setStatus('Testing upload...');
-      const chunkSize = 5 * 1024 * 1024;
       const duration = 10000;
       const start = performance.now();
       let bytes = 0, lastUp = start;
 
-      const data = new Uint8Array(chunkSize);
-      for (let i = 0; i < chunkSize; i += 65536) {
-        crypto.getRandomValues(data.subarray(i, Math.min(i + 65536, chunkSize)));
-      }
-
       while (performance.now() - start < duration) {
-        await fetch('/api/upload', { method: 'POST', body: data, headers: { 'Content-Type': 'application/octet-stream' } });
-        bytes += chunkSize;
+        await fetch('/api/upload', { method: 'POST', body: uploadData, headers: { 'Content-Type': 'application/octet-stream' } });
+        bytes += uploadData.length;
         const now = performance.now();
         if (now - lastUp > 200) {
           onProgress((bytes * 8) / ((now - start) / 1000));
